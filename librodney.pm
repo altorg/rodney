@@ -609,9 +609,9 @@ sub get_pom_str {
 
 sub dogrepsrc {
     my $grepstr = shift;
-    my $srcfiles = shift || "/opt/nethack/rodney/data/nh343/src/*.[ch] /opt/nethack/rodney/data/nh343/include/*.[ch]";
+    my $srcfiles = shift || "/opt/nethack/rodney/data/nh360/src/*.[ch] /opt/nethack/rodney/data/nh360/include/*.[ch]";
 
-    my $pathbase = "/opt/nethack/rodney/data/nh343/";
+    my $pathbase = "/opt/nethack/rodney/data/nh360/";
 
     if ($grepstr =~ m/^file=((src\/|include\/)?([a-zA-Z_*]+(\.[ch*])?))\s(.+)$/) {
 	my ($fullfn, $pathfrag, $fnonly, $fileext, $searchstr) = ($1, $2, $3, $4, $5);
@@ -630,13 +630,13 @@ sub dogrepsrc {
     my $tmpstr = $grepstr;
     $tmpstr =~ s/[^a-zA-Z0-9]//g;
 
-    $grepstr =~ s/["')(\[\]]/./g;
+    $grepstr =~ s/["'`)(\[\]]/./g;
 
     $grepstr =~ s/\\/./g;
 
     return "Need something sensible to look for." if ($tmpstr eq "");
 
-    my $grepline = "grep -n \"$grepstr\" $srcfiles";
+    my $grepline = "grep -n --regexp=\"$grepstr\" $srcfiles";
 
     my @lines = split(/\n/, `$grepline`);
 
@@ -650,7 +650,7 @@ sub dogrepsrc {
 	        my ($srcfile, $linenum) = $a =~ m/^([^:]+):([0-9]+):/;
 		if (defined $srcfile && defined $linenum) {
 		    $ret .= "  " if ($ret);
-		    $ret .= "http://nethackwiki.com/wiki/Source:".basename($srcfile)."#line".$linenum;
+		    $ret .= "http://nethackwiki.com/wiki/Source:NetHack_3.6.0/src/".basename($srcfile)."#line".$linenum;
 		}
 	}
 	return scalar(@lines)." matches: ".$ret;
@@ -701,7 +701,7 @@ sub parse_xlogline {
 
     my %ret;
 
-    my @dat = ( split /:/, $line );
+    my @dat = split ( "\t", $line );
 
     my $a;
 

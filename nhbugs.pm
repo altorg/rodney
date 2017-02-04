@@ -65,10 +65,10 @@ sub update_buglist {
     my $n_bugs = 0;
 
     for ($curline = 0; $curline < @bugfile; ++$curline) {
-	if ($bugfile[$curline] =~ m/<td><a name=.....-.*.>....-.*<\/a>/i) {
+	if ($bugfile[$curline] =~ m/<td><nobr>....-.*<\/nobr>/i) {
 
-	    my ($bugl_name) = $bugfile[$curline] =~ /<td><a name=.....-.*.>(....-.*)<\/a>/;
-	    my ($bugl_status) = $bugfile[++$curline] =~ /<td><a href=.*>(.*)<\/a>/;
+	    my ($bugl_name) = $bugfile[$curline] =~ /<td><nobr>(....-.*)<\/nobr>/;
+	    my ($bugl_status) = $bugfile[++$curline] =~ /<td><a href=.*?>(.*)<\/a>/;
 	    if ($bugl_status =~ /^Fixed/) {
 		$bugl_status = "NextVersion";
 	    }

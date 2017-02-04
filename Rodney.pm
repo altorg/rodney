@@ -277,7 +277,7 @@ sub bot_start {
 
     $buglist_db->init($self->{'BugCache'}, $self->{'nh_org_bugpage'});
 
-    $reddit_rss->init('http://reddit.com/r/nethack.rss', $self->{'RSS_tstamp'});
+    $reddit_rss->init('https://reddit.com/r/nethack.rss', $self->{'RSS_tstamp'});
     $kernel->delay('handle_reddit_rss_data' => 300);
 
     $kernel->delay('d_tick' => 10) if ($self->{'CheckLog'} > 0);
@@ -308,7 +308,7 @@ sub shorten_url {
 	$sth->execute();
 	my $id = $dbh->{'mysql_insertid'};
 	$dbh->disconnect();
-	$url = 'http://url.alt.org/?'.$id;
+	$url = 'https://url.alt.org/?'.$id;
     } else {
 	debugprint("Url shortening db error.") if (!$dbh);
     }
@@ -420,6 +420,7 @@ sub mangle_sql_query {
 	);
 
     my %param_subst = (
+	"36" => "version=3.6.0",
         "won" => "death=ascended",
         "!won" => "death!=ascended*",
 	"ascended" => "death=ascended",
@@ -1006,7 +1007,7 @@ sub paramstr_playername {
 sub paramstr_iswikipage {
     my $str = shift || "";
     if (length($str) > 0) {
-        my $db = DBI->connect("dbi:".$nethackwikidb->{dbtype}.":".$nethackwikidb->{db}.":localhost",
+        my $db = DBI->connect("dbi:".$nethackwikidb->{dbtype}.":".$nethackwikidb->{db}.":".$nethackwikidb->{host},
                               $nethackwikidb->{user}, $nethackwikidb->{pass},
                               {AutoCommit => 1, PrintError => 1});
         if ($db->err()) { debugprint("$DBI::errstr"); return ""; }
@@ -1025,7 +1026,7 @@ sub paramstr_iswikipage {
 sub paramstr_wikipage {
     my $str = shift || "";
     if (length($str) > 0) {
-        my $db = DBI->connect("dbi:".$nethackwikidb->{dbtype}.":".$nethackwikidb->{db}.":localhost",
+        my $db = DBI->connect("dbi:".$nethackwikidb->{dbtype}.":".$nethackwikidb->{db}.":".$nethackwikidb->{host},
                               $nethackwikidb->{user}, $nethackwikidb->{pass},
                               {AutoCommit => 1, PrintError => 1});
         if ($db->err()) { debugprint("$DBI::errstr"); return ""; }
@@ -1043,7 +1044,7 @@ sub paramstr_wikipage {
 sub paramstr_nwikipages {
     my $str = shift || "";
     if (length($str) > 0) {
-        my $db = DBI->connect("dbi:".$nethackwikidb->{dbtype}.":".$nethackwikidb->{db}.":localhost",
+        my $db = DBI->connect("dbi:".$nethackwikidb->{dbtype}.":".$nethackwikidb->{db}.":".$nethackwikidb->{host},
                               $nethackwikidb->{user}, $nethackwikidb->{pass},
                               {AutoCommit => 1, PrintError => 1});
         if ($db->err()) { debugprint("$DBI::errstr"); return ""; }
@@ -1083,6 +1084,24 @@ sub player_list {
     $fmask = '^.*'.$fmask.'.*:\d+-\d+-\d+\.\d+:\d+:\d+\.ttyrec$';
 
     @files = find_files($self->{'dglInprogPath'}, $fmask);
+
+    if ($#files >= 0) {
+	my $c;
+	my $count = 0;
+
+	my @tmpf = sort { lc $a cmp lc $b } @files;
+
+	foreach (@tmpf) {
+	    my ($b) = /^([^:]*).*/;
+	    push @return, $b;
+	}
+    }
+    # 3.4.3 HACK! 
+    # Sorry, Pasi. Can get rid of this once 343 is gone. 
+    # if we're supporting multiple versions in the future, need to decide
+    # how to handle here.
+    my $oldpath = '/opt/nethack/nethack.alt.org/dgldir/inprogress-nh343';
+    @files = find_files($oldpath, $fmask);
 
     if ($#files >= 0) {
 	my $c;
@@ -1378,6 +1397,7 @@ sub setup_tail {
     if (open($LOGFILE,$fname)) {
 	seek($LOGFILE,0,2);
 	$curpos = tell($LOGFILE);
+	debugprint("Opened $fname for tail.");
     } else {
 	debugprint("Can't open file $fname, logfile checking disabled.");
 	$self->{'CheckLog'} = 0;
@@ -1400,7 +1420,9 @@ sub on_d_tick {
 		my $recordno = 0;
 		my $counter = 0;
 
-		if (!$line) { next; }
+		if (!$line) { 
+			next; 
+		}
 
 		$line =~ s/\n//;
 
@@ -1409,6 +1431,8 @@ sub on_d_tick {
 		if (($dat{'points'} < 1000) && ($dat{'death'} =~ /^quit|^escaped/)) { next; }
 		# someone thought of spamming
 #		elsif ($death =~ /((http)|(www\.)|(ipod)|(tinyurl)|(xrl)/i)) { next; }
+
+		$dat{'death'} .= ", while " . $dat{'while'} if (defined($dat{'while'}) && $dat{'while'} !~ /^\s*$/);
 
 		my $infostr = "$dat{'name'} ($dat{'crga'}), $dat{'points'} points, T:$dat{'turns'}, $dat{'death'}";
 		my $oldstyle = xlog2record($line);
@@ -1492,7 +1516,7 @@ sub dumplog_url {
     my $userdir = "$directory/".substr($name, 0,1)."/$name/dumplog/";
 
     opendir DIR, $userdir;
-    my @files = sort grep {/^\d+\.nh343\.txt$/} readdir DIR;
+    my @files = sort grep {/^\d+\.nh360\.txt$/} readdir DIR;
 
     if (@files) {
 	my %namehash = (name=>$name);

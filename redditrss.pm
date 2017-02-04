@@ -3,6 +3,7 @@ package RedditRSS;
 use strict;
 use warnings;
 use diagnostics;
+use XML::Feed;
 
 use HTTP::Date;
 
@@ -18,7 +19,7 @@ sub init {
     my $cachedir = shift || $self->{'cachedir'};
 
     $self->{'cachefile'} = $rss_url;
-    $self->{'cachefile'} =~ s/^http:\/\///;
+    $self->{'cachefile'} =~ s/^https:\/\///;
     $self->{'cachefile'} =~ tr/\//./;
 
     $self->{'cachedir'} = $cachedir if (!$self->{'cachedir'});
@@ -49,35 +50,20 @@ sub cache_write {
     close(CACHEFILE);
 }
 
-sub parse_reddit_rss_itempart {
-    my ($part, $data, $itemref) = @_;
-
-    if ($data =~ m/<\Q$part\E>(.+?)<\/\Q$part\E>/) {
-	my $title = $1;
-	$data =~ s/<\Q$part\E>.+?<\/\Q$part\E>//;
-	$itemref->{$part} = $title;
-    }
-    return $data;
-}
-
-
 sub parse_reddit_rss {
-    my $data = shift;
+    my $feed = shift;
 
     my @itemlist = ();
 
-    while ($data =~ m/<item>(.+?)<\/item>/) {
-	my $itemdata = $1;
+    foreach ($feed->entries) {
 	my %item = ();
 
-	$itemdata = parse_reddit_rss_itempart('title', $itemdata, \%item);
-	$itemdata = parse_reddit_rss_itempart('link', $itemdata, \%item);
-	$itemdata = parse_reddit_rss_itempart('pubDate', $itemdata, \%item);
-	$itemdata = parse_reddit_rss_itempart('description', $itemdata, \%item);
+	$item{'title'} = $_->title;
+        $item{'link'} = $_->link;
+	$item{'pubDate'} = $_->modified->epoch();
+	$item{'description'} = "";
 
-	push(@itemlist, \%item);
-
-	$data =~ s/<item>.+?<\/item>//;
+        push(@itemlist, \%item);
     }
 
     return @itemlist;
@@ -85,11 +71,10 @@ sub parse_reddit_rss {
 
 sub update_rss {
     my $self = shift;
-    my @bugfile = `/usr/bin/wget --timeout=20 --quiet -O - $self->{'rss_url'}`;
+    my $feed = XML::Feed->parse(URI->new($self->{'rss_url'}))
+	or return '';
 
-    my $rssdata = join('', @bugfile);
-
-    my @items = parse_reddit_rss($rssdata);
+    my @items = parse_reddit_rss($feed);
     my $nitems = scalar(@items);
 
     my $retstr;
@@ -99,17 +84,17 @@ sub update_rss {
     my $i;
 
     for ($i = 0; $i < $nitems; $i++) {
-	if (scalar(str2time($items[$i]->{pubDate})) > $self->{'cachedate'}) {
+	if ($items[$i]->{pubDate} > $self->{'cachedate'}) {
 	    $retstr = 'Reddit: '.$items[$i]->{title}.' ';
 	    my $lnk = $items[$i]->{link};
-	    my $url = 'http://redd.it/';
+	    my $url = 'https://redd.it/';
 	    if ($lnk =~ m/^.+?\/comments\/([a-z0-9]+)\//) {
 		$url .= $1;
 	    } else {
 		$url = $items[$i]->{link};
 	    }
 	    $retstr .= $url;
-	    $self->{'cachedate'} = scalar(str2time($items[$i]->{pubDate}));
+	    $self->{'cachedate'} = $items[$i]->{pubDate};
 	    return $retstr;
 	}
     }
